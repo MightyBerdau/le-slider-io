@@ -18,7 +18,6 @@ A lightweight Python library for managing and persisting audio rating recordings
   - [RatingRecordingSchema](#ratingrecordingschema)
   - [Recording Utilities](#recording-utilities)
 - [License](#license)
-- [Author](#author)
 - [Acknowledgements](#acknowledgements)
 - [Citation](#citation)
 
@@ -239,11 +238,6 @@ ___
 # License
 
 GNU General Public License v3.0 or later (GPLv3+)
-___
-
-# Author
-
-Martin Berdau
 ___
 
 # Acknowledgements
