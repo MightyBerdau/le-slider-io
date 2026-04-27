@@ -1,0 +1,30 @@
+[buil-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "le-slider-io"
+version = "1.0"
+license = { file = "LICENSE" }
+description = "Utility project for the LE Slider project"
+authors = [
+  {name="Martin Berdau", email="martinberdau@web.de" },
+]
+readme = "README.md"
+
+requires-python = ">=3.11.3"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"
+]
+
+dependencies = [
+    
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov"
+]
