@@ -10,6 +10,50 @@ from typing import List
 from .schema import RatingRecordingSchema
 
 
+def get_safe_filepath(filepath: str) -> str:
+    """Generate a safe filepath that doesn't overwrite existing files.
+    
+    If the file doesn't exist, returns the original filepath.
+    If it exists, generates alternatives with numeric suffixes before the extension
+    (e.g., 'file_1.json', 'file_2.json') until an unused name is found.
+    
+    Args:
+        filepath: Path to the desired file
+        
+    Returns:
+        A filepath that is guaranteed not to exist (safe to write to)
+        
+    Example:
+        >>> # If 'data.json' exists but 'data_1.json' doesn't:
+        >>> get_safe_filepath('/path/to/data.json')
+        '/path/to/data_1.json'
+    """
+    if not os.path.exists(filepath):
+        return filepath
+    
+    # Split filepath into directory, name, and extension
+    directory = os.path.dirname(filepath) or '.'
+    filename = os.path.basename(filepath)
+    
+    # Handle files with extensions
+    if '.' in filename:
+        name_parts = filename.rsplit('.', 1)
+        base_name = name_parts[0]
+        extension = '.' + name_parts[1]
+    else:
+        base_name = filename
+        extension = ''
+    
+    # Find the next available filename by incrementing counter
+    counter = 1
+    while True:
+        new_filename = f"{base_name}_{counter}{extension}"
+        new_filepath = os.path.join(directory, new_filename)
+        if not os.path.exists(new_filepath):
+            return new_filepath
+        counter += 1
+
+
 def calculate_relative_timestamps(
     num_samples: int,
     blocksize: int,
@@ -42,7 +86,8 @@ def calculate_relative_timestamps(
 def save_recording(
     schema: RatingRecordingSchema,
     output_dir: str,
-    naming_template: str = "{participant_id}_{stimulus_name}.json"
+    naming_template: str = "{participant_id}_{stimulus_name}.json",
+    prevent_overwrite: bool = True
 ) -> str:
     """Save a RatingRecordingSchema to a JSON file.
     
@@ -56,6 +101,8 @@ def save_recording(
             - {participant_id}: schema.participant_id
             - {stimulus_name}: basename of stimulus_path (without extension)
             - {session_id}: schema.session_id (default: not used)
+        prevent_overwrite: If True (default), appends numeric suffix to avoid
+            overwriting existing files (e.g., 'file_1.json')
     
     Returns:
         Absolute path to the saved JSON file
@@ -90,10 +137,11 @@ def save_recording(
     # Construct full filepath
     filepath = os.path.join(output_dir, filename)
     
-    # Save using schema's built-in method (handles directory creation)
-    schema.to_json_file(filepath)
+    # Save using schema's built-in method (handles directory creation and collision prevention)
+    # Returns the actual filepath that was written (may differ if collision prevention is enabled)
+    actual_filepath = schema.to_json_file(filepath, prevent_overwrite=prevent_overwrite)
     
-    return os.path.abspath(filepath)
+    return actual_filepath
 
 
 def load_recording(filepath: str) -> RatingRecordingSchema:

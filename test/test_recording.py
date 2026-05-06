@@ -9,7 +9,8 @@ from le_slider_io.recording import (
     calculate_relative_timestamps,
     save_recording,
     load_recording,
-    load_all_recordings
+    load_all_recordings,
+    get_safe_filepath
 )
 
 
@@ -80,6 +81,90 @@ class TestCalculateRelativeTimestamps:
         
         # Larger blocksize means longer intervals between samples
         assert timestamps_2048[0] > timestamps_512[0]
+
+
+class TestGetSafeFilepath:
+    """Test file collision prevention utility."""
+    
+    def test_safe_filepath_no_collision(self, temp_output_dir):
+        """Verify returns original path when file doesn't exist."""
+        filepath = os.path.join(temp_output_dir, "new_file.json")
+        result = get_safe_filepath(filepath)
+        assert result == filepath
+    
+    def test_safe_filepath_with_collision(self, temp_output_dir):
+        """Verify generates _1 suffix when file exists."""
+        filepath = os.path.join(temp_output_dir, "data.json")
+        # Create the file
+        with open(filepath, 'w') as f:
+            f.write("{}")
+        
+        result = get_safe_filepath(filepath)
+        assert result.endswith("data_1.json")
+        assert os.path.dirname(result) == temp_output_dir
+        assert not os.path.exists(result)  # Should return a path that doesn't exist
+    
+    def test_safe_filepath_multiple_collisions(self, temp_output_dir):
+        """Verify increments counter when multiple variants exist."""
+        filepath = os.path.join(temp_output_dir, "data.json")
+        # Create original and first variant
+        with open(filepath, 'w') as f:
+            f.write("{}")
+        with open(os.path.join(temp_output_dir, "data_1.json"), 'w') as f:
+            f.write("{}")
+        
+        result = get_safe_filepath(filepath)
+        assert result.endswith("data_2.json")
+        assert not os.path.exists(result)
+    
+    def test_safe_filepath_with_multiple_dots(self, temp_output_dir):
+        """Verify handles filenames with multiple dots correctly."""
+        filepath = os.path.join(temp_output_dir, "data.backup.json")
+        with open(filepath, 'w') as f:
+            f.write("{}")
+        
+        result = get_safe_filepath(filepath)
+        assert result.endswith("data.backup_1.json")
+        # Extension should be preserved
+        assert result.startswith(os.path.join(temp_output_dir, "data.backup_"))
+    
+    def test_safe_filepath_no_extension(self, temp_output_dir):
+        """Verify handles files without extensions."""
+        filepath = os.path.join(temp_output_dir, "datafile")
+        with open(filepath, 'w') as f:
+            f.write("{}")
+        
+        result = get_safe_filepath(filepath)
+        assert result.endswith("datafile_1")
+        assert not os.path.exists(result)
+    
+    def test_safe_filepath_high_counter(self, temp_output_dir):
+        """Verify handles high counter values efficiently."""
+        filepath = os.path.join(temp_output_dir, "data.json")
+        # Create files up to _5
+        with open(filepath, 'w') as f:
+            f.write("{}")
+        for i in range(1, 6):
+            with open(os.path.join(temp_output_dir, f"data_{i}.json"), 'w') as f:
+                f.write("{}")
+        
+        result = get_safe_filepath(filepath)
+        assert result.endswith("data_6.json")
+    
+    def test_safe_filepath_with_nested_dirs(self):
+        """Verify handles nested directory paths."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            nested_dir = os.path.join(tmp, "level1", "level2", "level3")
+            os.makedirs(nested_dir, exist_ok=True)
+            
+            filepath = os.path.join(nested_dir, "data.json")
+            with open(filepath, 'w') as f:
+                f.write("{}")
+            
+            result = get_safe_filepath(filepath)
+            assert result.endswith("data_1.json")
+            assert os.path.dirname(result) == nested_dir
 
 
 class TestSaveRecording:
@@ -159,6 +244,62 @@ class TestSaveRecording:
         assert os.path.exists(filepath)
         # Filename should be VP001_.json (empty stimulus name)
         assert "VP001_" in filepath
+    
+    def test_save_recording_prevent_overwrite_enabled(self, sample_schema, temp_output_dir):
+        """Verify save_recording creates unique filename when prevent_overwrite=True."""
+        # Save same schema twice
+        filepath1 = save_recording(sample_schema, temp_output_dir, prevent_overwrite=True)
+        filepath2 = save_recording(sample_schema, temp_output_dir, prevent_overwrite=True)
+        
+        # Second save should have _1 suffix
+        assert filepath1 != filepath2
+        assert "_1" in filepath2
+        assert os.path.exists(filepath1)
+        assert os.path.exists(filepath2)
+        
+        # Both should contain valid data
+        data1 = json.load(open(filepath1))
+        data2 = json.load(open(filepath2))
+        assert data1["participant_id"] == data2["participant_id"]
+    
+    def test_save_recording_prevent_overwrite_disabled(self, temp_output_dir):
+        """Verify save_recording overwrites when prevent_overwrite=False."""
+        # Create initial schema
+        schema = RatingRecordingSchema(
+            participant_id="VP001",
+            stimulus_path="stimulus.wav",
+            ratings=[1.0, 2.0]
+        )
+        
+        # Save first time
+        filepath1 = save_recording(schema, temp_output_dir, prevent_overwrite=False)
+        
+        # Verify file exists with initial content
+        with open(filepath1) as f:
+            data1 = json.load(f)
+        assert data1["ratings"] == [1.0, 2.0]
+        
+        # Modify ratings and save again to same location (should overwrite)
+        schema.ratings = [3.0, 4.0, 5.0]
+        filepath2 = save_recording(schema, temp_output_dir, prevent_overwrite=False)
+        
+        # Both should return same filepath
+        assert filepath1 == filepath2
+        
+        # File should contain updated data (overwritten)
+        with open(filepath2) as f:
+            data2 = json.load(f)
+        assert data2["ratings"] == [3.0, 4.0, 5.0]
+    
+    def test_save_recording_prevent_overwrite_default(self, sample_schema, temp_output_dir):
+        """Verify prevent_overwrite=True is the default."""
+        # Save without specifying prevent_overwrite (should default to True)
+        filepath1 = save_recording(sample_schema, temp_output_dir)
+        filepath2 = save_recording(sample_schema, temp_output_dir)
+        
+        # Second should have _1 suffix (collision prevented)
+        assert filepath1 != filepath2
+        assert "_1" in filepath2
 
 
 class TestLoadRecording:

@@ -175,6 +175,71 @@ class TestToJsonFile:
         
         # Indent 4 should be longer due to more spaces
         assert len(content2) > len(content1)
+    
+    def test_to_json_file_prevent_overwrite_enabled(self, sample_schema, temp_output_dir):
+        """Verify to_json_file prevents overwriting when prevent_overwrite=True."""
+        filepath = os.path.join(temp_output_dir, "data.json")
+        
+        # Save twice to same path
+        sample_schema.to_json_file(filepath, prevent_overwrite=True)
+        sample_schema.to_json_file(filepath, prevent_overwrite=True)
+        
+        # Both files should exist
+        assert os.path.exists(filepath)
+        assert os.path.exists(os.path.join(temp_output_dir, "data_1.json"))
+    
+    def test_to_json_file_prevent_overwrite_disabled(self, sample_schema, temp_output_dir):
+        """Verify to_json_file overwrites when prevent_overwrite=False."""
+        filepath = os.path.join(temp_output_dir, "data.json")
+        
+        # Save twice to same path with overwrite enabled
+        sample_schema.to_json_file(filepath, prevent_overwrite=False)
+        sample_schema.to_json_file(filepath, prevent_overwrite=False)
+        
+        # Only original file should exist
+        assert os.path.exists(filepath)
+        assert not os.path.exists(os.path.join(temp_output_dir, "data_1.json"))
+    
+    def test_to_json_file_prevent_overwrite_default(self, sample_schema, temp_output_dir):
+        """Verify prevent_overwrite=True is the default."""
+        filepath = os.path.join(temp_output_dir, "data.json")
+        
+        # Save without specifying prevent_overwrite (should default to True)
+        sample_schema.to_json_file(filepath)
+        sample_schema.to_json_file(filepath)
+        
+        # Second file should have _1 suffix
+        assert os.path.exists(filepath)
+        assert os.path.exists(os.path.join(temp_output_dir, "data_1.json"))
+    
+    def test_to_json_file_multiple_collisions(self, sample_schema, temp_output_dir):
+        """Verify to_json_file handles multiple collision attempts."""
+        filepath = os.path.join(temp_output_dir, "data.json")
+        
+        # Save three times
+        sample_schema.to_json_file(filepath, prevent_overwrite=True)
+        sample_schema.to_json_file(filepath, prevent_overwrite=True)
+        sample_schema.to_json_file(filepath, prevent_overwrite=True)
+        
+        # All three files should exist with correct names
+        assert os.path.exists(filepath)
+        assert os.path.exists(os.path.join(temp_output_dir, "data_1.json"))
+        assert os.path.exists(os.path.join(temp_output_dir, "data_2.json"))
+    
+    def test_to_json_file_data_integrity_with_collision_prevention(self, sample_schema, temp_output_dir):
+        """Verify schema data is preserved when collision prevention is used."""
+        filepath = os.path.join(temp_output_dir, "data.json")
+        
+        # Save with collision prevention
+        sample_schema.to_json_file(filepath, prevent_overwrite=True)
+        
+        # Load and verify data
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        assert data["participant_id"] == sample_schema.participant_id
+        assert data["ratings"] == sample_schema.ratings
+        assert data["time_stamps"] == sample_schema.time_stamps
 
 
 class TestFromJsonDict:

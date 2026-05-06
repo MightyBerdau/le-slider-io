@@ -23,17 +23,30 @@ class RatingRecordingSchema:
         """Convert schema to formatted JSON string."""
         return json.dumps(self.to_json_dict(), indent=indent, ensure_ascii=False)
 
-    def to_json_file(self, filepath: str, indent: int = 2):
+    def to_json_file(self, filepath: str, indent: int = 2, prevent_overwrite: bool = True) -> str:
         """Save schema to JSON file.
         
         Args:
             filepath: Path to output JSON file
             indent: JSON indentation level
+            prevent_overwrite: If True (default), appends numeric suffix to avoid
+                overwriting existing files (e.g., 'file_1.json')
+                
+        Returns:
+            Absolute path to the file that was written
         """
-        # TODO overwrite prevention
+        # Import here to avoid circular dependencies
+        from .recording import get_safe_filepath
+        
+        # Get safe filepath if collision prevention is enabled
+        if prevent_overwrite:
+            filepath = get_safe_filepath(filepath)
+        
         os.makedirs(os.path.dirname(filepath) or '.', exist_ok=True)
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(self.to_json_string(indent=indent))
+        
+        return os.path.abspath(filepath)
     
     @staticmethod
     def from_json_dict(data: Dict[str, Any]) -> 'RatingRecordingSchema':
