@@ -1,4 +1,4 @@
-from .schema import RatingRecordingSchema
+from .schema import RatingRecordingSchema, CalibrationSchema
 from .recording import (
     calculate_relative_timestamps,
     save_recording,
@@ -8,6 +8,7 @@ from .recording import (
 
 __all__ = [
     'RatingRecordingSchema',
+    'CalibrationSchema',
     'calculate_relative_timestamps',
     'save_recording',
     'load_recording',

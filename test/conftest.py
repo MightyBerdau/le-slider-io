@@ -3,7 +3,7 @@
 import json
 import pytest
 from pathlib import Path
-from le_slider_io.schema import RatingRecordingSchema
+from le_slider_io.schema import RatingRecordingSchema, CalibrationSchema
 
 
 @pytest.fixture
@@ -28,6 +28,15 @@ def sample_schema():
 
 
 @pytest.fixture
+def sample_calib_schema():
+    """Create a sample CalibrationSchema with typical data."""
+    return CalibrationSchema(
+        session_id="2026-04-24T13:15:36.008773+02:00",
+        gain_calib=-12.5
+    )
+
+
+@pytest.fixture
 def temp_output_dir(tmp_path):
     """Create a temporary output directory for tests."""
     return str(tmp_path)
@@ -35,12 +44,25 @@ def temp_output_dir(tmp_path):
 
 @pytest.fixture
 def sample_json_file(tmp_path, sample_schema):
-    """Create a temporary JSON file from sample schema."""
+    """Create a temporary JSON file from sample RatingRecordingSchema."""
     json_path = tmp_path / "sample_recording.json"
     return sample_schema.to_json_file(json_path)
 
 
 @pytest.fixture
+def sample_calib_json_file(tmp_path, sample_calib_schema):
+    """Create a temporary JSON file from sample CalibrationSchema."""
+    json_path = tmp_path / "sample_calibration.json"
+    return sample_calib_schema.to_json_file(json_path)
+
+
+@pytest.fixture
 def sample_json_dict(sample_schema):
-    """Get the JSON-serializable dictionary from sample schema."""
+    """Get the JSON-serializable dictionary from sample RatingRecordingSchema."""
     return sample_schema.to_json_dict()
+
+
+@pytest.fixture
+def sample_calib_json_dict(sample_calib_schema):
+    """Get the JSON-serializable dictionary from sample CalibrationSchema."""
+    return sample_calib_schema.to_json_dict()
