@@ -4,13 +4,12 @@ This module provides utilities for handling rating recordings, including
 timestamp calculation and file persistence.
 """
 
-import os
 from pathlib import Path
 from typing import List
 from .schema import RatingRecordingSchema
 
 
-def get_safe_filepath(filepath: str) -> str:
+def get_safe_filepath(filepath: str | Path) -> Path:
     """Generate a safe filepath that doesn't overwrite existing files.
     
     If the file doesn't exist, returns the original filepath.
@@ -21,19 +20,21 @@ def get_safe_filepath(filepath: str) -> str:
         filepath: Path to the desired file
         
     Returns:
-        A filepath that is guaranteed not to exist (safe to write to)
+        A pathlib.Path that is guaranteed not to exist (safe to write to)
         
     Example:
         >>> # If 'data.json' exists but 'data_1.json' doesn't:
         >>> get_safe_filepath('/path/to/data.json')
         '/path/to/data_1.json'
     """
-    if not os.path.exists(filepath):
+    filepath = Path(filepath)
+
+    if not filepath.exists():
         return filepath
     
     # Split filepath into directory, name, and extension
-    directory = os.path.dirname(filepath) or '.'
-    filename = os.path.basename(filepath)
+    directory = filepath.parent
+    filename = filepath.name
     
     # Handle files with extensions
     if '.' in filename:
@@ -48,8 +49,8 @@ def get_safe_filepath(filepath: str) -> str:
     counter = 1
     while True:
         new_filename = f"{base_name}_{counter}{extension}"
-        new_filepath = os.path.join(directory, new_filename)
-        if not os.path.exists(new_filepath):
+        new_filepath = directory / new_filename
+        if not new_filepath.exists():
             return new_filepath
         counter += 1
 
@@ -85,10 +86,10 @@ def calculate_relative_timestamps(
 
 def save_recording(
     schema: RatingRecordingSchema,
-    output_dir: str,
+    output_dir: str | Path,
     naming_template: str = "{participant_id}_{stimulus_name}.json",
     prevent_overwrite: bool = True
-) -> str:
+) -> Path:
     """Save a RatingRecordingSchema to a JSON file.
     
     Creates necessary output directories and saves the schema as a formatted
@@ -105,7 +106,7 @@ def save_recording(
             overwriting existing files (e.g., 'file_1.json')
     
     Returns:
-        Absolute path to the saved JSON file
+        Absolute path to the saved JSON file as pathlib.Path
         
     Raises:
         OSError: If file cannot be written
@@ -123,9 +124,7 @@ def save_recording(
         /path/to/results/VP001_stimulus.json
     """
     # Extract stimulus basename without extension
-    stimulus_name = os.path.splitext(
-        os.path.basename(schema.stimulus_path)
-    )[0]
+    stimulus_name = Path(schema.stimulus_path).stem
     
     # Generate filename from template
     filename = naming_template.format(
@@ -135,7 +134,7 @@ def save_recording(
     )
     
     # Construct full filepath
-    filepath = os.path.join(output_dir, filename)
+    filepath = Path(output_dir) / filename
     
     # Save using schema's built-in method (handles directory creation and collision prevention)
     # Returns the actual filepath that was written (may differ if collision prevention is enabled)
@@ -144,7 +143,7 @@ def save_recording(
     return actual_filepath
 
 
-def load_recording(filepath: str) -> RatingRecordingSchema:
+def load_recording(filepath: str | Path) -> RatingRecordingSchema:
     """Load a RatingRecordingSchema from a JSON file.
     
     Args:
@@ -166,7 +165,7 @@ def load_recording(filepath: str) -> RatingRecordingSchema:
     return RatingRecordingSchema.from_json_file(filepath)
 
 
-def load_all_recordings(directory: str) -> List[RatingRecordingSchema]:
+def load_all_recordings(directory: str | Path) -> List[RatingRecordingSchema]:
     """Load all RatingRecordingSchema JSON files from a directory.
     
     Recursively searches the directory for all .json files and attempts
@@ -191,7 +190,7 @@ def load_all_recordings(directory: str) -> List[RatingRecordingSchema]:
     
     for json_file in directory_path.rglob("*.json"):
         try:
-            schema = load_recording(str(json_file))
+            schema = load_recording(json_file)
             recordings.append(schema)
         except Exception:
             # Skip files that cannot be loaded as recordings

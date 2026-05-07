@@ -1,7 +1,6 @@
 """Tests for RatingRecordingSchema serialization and deserialization."""
 
 import json
-import os
 from pathlib import Path
 import pytest
 from le_slider_io.schema import RatingRecordingSchema
@@ -137,22 +136,20 @@ class TestToJsonFile:
     
     def test_to_json_file_creates_file(self, sample_schema, temp_output_dir):
         """Verify to_json_file creates a file."""
-        filepath = os.path.join(temp_output_dir, "test_output.json")
+        filepath = Path(temp_output_dir) / "test_output.json"
         sample_schema.to_json_file(filepath)
-        assert os.path.exists(filepath)
+        assert filepath.exists()
     
     def test_to_json_file_creates_directories(self, sample_schema, temp_output_dir):
         """Verify to_json_file creates missing directories."""
-        filepath = os.path.join(
-            temp_output_dir, "nested", "deep", "test_output.json"
-        )
+        filepath = Path(temp_output_dir) / "nested" / "deep" / "test_output.json"
         sample_schema.to_json_file(filepath)
-        assert os.path.exists(filepath)
-        assert os.path.isdir(os.path.dirname(filepath))
+        assert filepath.exists()
+        assert filepath.parent.is_dir()
     
     def test_to_json_file_content_valid_json(self, sample_schema, temp_output_dir):
         """Verify saved file contains valid JSON."""
-        filepath = os.path.join(temp_output_dir, "test.json")
+        filepath = Path(temp_output_dir) / "test.json"
         sample_schema.to_json_file(filepath)
         
         with open(filepath, 'r', encoding='utf-8') as f:
@@ -162,8 +159,8 @@ class TestToJsonFile:
     
     def test_to_json_file_custom_indent(self, sample_schema, temp_output_dir):
         """Verify to_json_file respects custom indent."""
-        filepath1 = os.path.join(temp_output_dir, "indent2.json")
-        filepath2 = os.path.join(temp_output_dir, "indent4.json")
+        filepath1 = Path(temp_output_dir) / "indent2.json"
+        filepath2 = Path(temp_output_dir) / "indent4.json"
         
         sample_schema.to_json_file(filepath1, indent=2)
         sample_schema.to_json_file(filepath2, indent=4)
@@ -178,43 +175,43 @@ class TestToJsonFile:
     
     def test_to_json_file_prevent_overwrite_enabled(self, sample_schema, temp_output_dir):
         """Verify to_json_file prevents overwriting when prevent_overwrite=True."""
-        filepath = os.path.join(temp_output_dir, "data.json")
+        filepath = Path(temp_output_dir) / "data.json"
         
         # Save twice to same path
         sample_schema.to_json_file(filepath, prevent_overwrite=True)
         sample_schema.to_json_file(filepath, prevent_overwrite=True)
         
         # Both files should exist
-        assert os.path.exists(filepath)
-        assert os.path.exists(os.path.join(temp_output_dir, "data_1.json"))
+        assert filepath.exists()
+        assert (Path(temp_output_dir) / "data_1.json").exists()
     
     def test_to_json_file_prevent_overwrite_disabled(self, sample_schema, temp_output_dir):
         """Verify to_json_file overwrites when prevent_overwrite=False."""
-        filepath = os.path.join(temp_output_dir, "data.json")
+        filepath = Path(temp_output_dir) / "data.json"
         
         # Save twice to same path with overwrite enabled
         sample_schema.to_json_file(filepath, prevent_overwrite=False)
         sample_schema.to_json_file(filepath, prevent_overwrite=False)
         
         # Only original file should exist
-        assert os.path.exists(filepath)
-        assert not os.path.exists(os.path.join(temp_output_dir, "data_1.json"))
+        assert filepath.exists()
+        assert not (Path(temp_output_dir) / "data_1.json").exists()
     
     def test_to_json_file_prevent_overwrite_default(self, sample_schema, temp_output_dir):
         """Verify prevent_overwrite=True is the default."""
-        filepath = os.path.join(temp_output_dir, "data.json")
+        filepath = Path(temp_output_dir) / "data.json"
         
         # Save without specifying prevent_overwrite (should default to True)
         sample_schema.to_json_file(filepath)
         sample_schema.to_json_file(filepath)
         
         # Second file should have _1 suffix
-        assert os.path.exists(filepath)
-        assert os.path.exists(os.path.join(temp_output_dir, "data_1.json"))
+        assert filepath.exists()
+        assert (Path(temp_output_dir) / "data_1.json").exists()
     
     def test_to_json_file_multiple_collisions(self, sample_schema, temp_output_dir):
         """Verify to_json_file handles multiple collision attempts."""
-        filepath = os.path.join(temp_output_dir, "data.json")
+        filepath = Path(temp_output_dir) / "data.json"
         
         # Save three times
         sample_schema.to_json_file(filepath, prevent_overwrite=True)
@@ -222,13 +219,13 @@ class TestToJsonFile:
         sample_schema.to_json_file(filepath, prevent_overwrite=True)
         
         # All three files should exist with correct names
-        assert os.path.exists(filepath)
-        assert os.path.exists(os.path.join(temp_output_dir, "data_1.json"))
-        assert os.path.exists(os.path.join(temp_output_dir, "data_2.json"))
+        assert filepath.exists()
+        assert (Path(temp_output_dir) / "data_1.json").exists()
+        assert (Path(temp_output_dir) / "data_2.json").exists()
     
     def test_to_json_file_data_integrity_with_collision_prevention(self, sample_schema, temp_output_dir):
         """Verify schema data is preserved when collision prevention is used."""
-        filepath = os.path.join(temp_output_dir, "data.json")
+        filepath = Path(temp_output_dir) / "data.json"
         
         # Save with collision prevention
         sample_schema.to_json_file(filepath, prevent_overwrite=True)
@@ -296,7 +293,7 @@ class TestFromJsonFile:
     
     def test_from_json_file_round_trip(self, sample_schema, temp_output_dir):
         """Verify round-trip: schema → file → schema."""
-        filepath = os.path.join(temp_output_dir, "round_trip.json")
+        filepath = Path(temp_output_dir) / "round_trip.json"
         sample_schema.to_json_file(filepath)
         
         loaded = RatingRecordingSchema.from_json_file(filepath)
@@ -312,7 +309,7 @@ class TestFromJsonFile:
     
     def test_from_json_file_invalid_json_raises(self, temp_output_dir):
         """Verify from_json_file raises JSONDecodeError for invalid JSON."""
-        filepath = os.path.join(temp_output_dir, "invalid.json")
+        filepath = Path(temp_output_dir) / "invalid.json"
         with open(filepath, 'w') as f:
             f.write("this is not valid json {")
         
@@ -325,7 +322,7 @@ class TestEncoding:
     
     def test_utf8_encoding_in_file(self, sample_schema, temp_output_dir):
         """Verify files are saved with UTF-8 encoding."""
-        filepath = os.path.join(temp_output_dir, "utf8_test.json")
+        filepath = Path(temp_output_dir) / "utf8_test.json"
         sample_schema.to_json_file(filepath)
         
         # Read as binary and check UTF-8 BOM or UTF-8 characters
@@ -342,7 +339,7 @@ class TestEncoding:
             stimulus_path="C:\\Ü\\ä\\ö\\test.wav"
         )
         
-        filepath = os.path.join(temp_output_dir, "special_chars.json")
+        filepath = Path(temp_output_dir) / "special_chars.json"
         schema.to_json_file(filepath)
         loaded = RatingRecordingSchema.from_json_file(filepath)
         

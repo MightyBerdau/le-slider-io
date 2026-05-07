@@ -37,8 +37,7 @@ def temp_output_dir(tmp_path):
 def sample_json_file(tmp_path, sample_schema):
     """Create a temporary JSON file from sample schema."""
     json_path = tmp_path / "sample_recording.json"
-    sample_schema.to_json_file(str(json_path))
-    return str(json_path)
+    return sample_schema.to_json_file(json_path)
 
 
 @pytest.fixture

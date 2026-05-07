@@ -1,6 +1,5 @@
 """Tests for recording utilities."""
 
-import os
 import json
 import pytest
 from pathlib import Path
@@ -88,83 +87,83 @@ class TestGetSafeFilepath:
     
     def test_safe_filepath_no_collision(self, temp_output_dir):
         """Verify returns original path when file doesn't exist."""
-        filepath = os.path.join(temp_output_dir, "new_file.json")
+        filepath = Path(temp_output_dir) / "new_file.json"
         result = get_safe_filepath(filepath)
         assert result == filepath
     
     def test_safe_filepath_with_collision(self, temp_output_dir):
         """Verify generates _1 suffix when file exists."""
-        filepath = os.path.join(temp_output_dir, "data.json")
+        filepath = Path(temp_output_dir) / "data.json"
         # Create the file
         with open(filepath, 'w') as f:
             f.write("{}")
         
         result = get_safe_filepath(filepath)
-        assert result.endswith("data_1.json")
-        assert os.path.dirname(result) == temp_output_dir
-        assert not os.path.exists(result)  # Should return a path that doesn't exist
+        assert result.name == "data_1.json"
+        assert result.parent == Path(temp_output_dir)
+        assert not result.exists()  # Should return a path that doesn't exist
     
     def test_safe_filepath_multiple_collisions(self, temp_output_dir):
         """Verify increments counter when multiple variants exist."""
-        filepath = os.path.join(temp_output_dir, "data.json")
+        filepath = Path(temp_output_dir) / "data.json"
         # Create original and first variant
         with open(filepath, 'w') as f:
             f.write("{}")
-        with open(os.path.join(temp_output_dir, "data_1.json"), 'w') as f:
+        with open(Path(temp_output_dir) / "data_1.json", 'w') as f:
             f.write("{}")
         
         result = get_safe_filepath(filepath)
-        assert result.endswith("data_2.json")
-        assert not os.path.exists(result)
+        assert result.name == "data_2.json"
+        assert not result.exists()
     
     def test_safe_filepath_with_multiple_dots(self, temp_output_dir):
         """Verify handles filenames with multiple dots correctly."""
-        filepath = os.path.join(temp_output_dir, "data.backup.json")
+        filepath = Path(temp_output_dir) / "data.backup.json"
         with open(filepath, 'w') as f:
             f.write("{}")
         
         result = get_safe_filepath(filepath)
-        assert result.endswith("data.backup_1.json")
+        assert result.name == "data.backup_1.json"
         # Extension should be preserved
-        assert result.startswith(os.path.join(temp_output_dir, "data.backup_"))
+        assert result.parent == Path(temp_output_dir)
     
     def test_safe_filepath_no_extension(self, temp_output_dir):
         """Verify handles files without extensions."""
-        filepath = os.path.join(temp_output_dir, "datafile")
+        filepath = Path(temp_output_dir) / "datafile"
         with open(filepath, 'w') as f:
             f.write("{}")
         
         result = get_safe_filepath(filepath)
-        assert result.endswith("datafile_1")
-        assert not os.path.exists(result)
+        assert result.name == "datafile_1"
+        assert not result.exists()
     
     def test_safe_filepath_high_counter(self, temp_output_dir):
         """Verify handles high counter values efficiently."""
-        filepath = os.path.join(temp_output_dir, "data.json")
+        filepath = Path(temp_output_dir) / "data.json"
         # Create files up to _5
         with open(filepath, 'w') as f:
             f.write("{}")
         for i in range(1, 6):
-            with open(os.path.join(temp_output_dir, f"data_{i}.json"), 'w') as f:
+            with open(Path(temp_output_dir) / f"data_{i}.json", 'w') as f:
                 f.write("{}")
         
         result = get_safe_filepath(filepath)
-        assert result.endswith("data_6.json")
+        assert result.name == "data_6.json"
     
     def test_safe_filepath_with_nested_dirs(self):
         """Verify handles nested directory paths."""
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:
-            nested_dir = os.path.join(tmp, "level1", "level2", "level3")
-            os.makedirs(nested_dir, exist_ok=True)
+            nested_dir = Path(tmp) / "level1" / "level2" / "level3"
+            Path(nested_dir).mkdir(parents=True, exist_ok=True)
             
-            filepath = os.path.join(nested_dir, "data.json")
+            filepath = nested_dir / "data.json"
             with open(filepath, 'w') as f:
                 f.write("{}")
             
             result = get_safe_filepath(filepath)
-            assert result.endswith("data_1.json")
-            assert os.path.dirname(result) == nested_dir
+            assert result.name == "data_1.json"
+            assert result.parent == nested_dir
 
 
 class TestSaveRecording:
@@ -173,20 +172,20 @@ class TestSaveRecording:
     def test_save_recording_creates_file(self, sample_schema, temp_output_dir):
         """Verify save_recording creates a file."""
         filepath = save_recording(sample_schema, temp_output_dir)
-        assert os.path.exists(filepath)
-        assert filepath.endswith(".json")
+        assert filepath.exists()
+        assert filepath.suffix == ".json"
     
     def test_save_recording_returns_absolute_path(self, sample_schema, temp_output_dir):
         """Verify save_recording returns absolute filepath."""
         filepath = save_recording(sample_schema, temp_output_dir)
-        assert os.path.isabs(filepath)
+        assert filepath.is_absolute()
     
     def test_save_recording_default_naming_template(self, sample_schema, temp_output_dir):
         """Verify default naming template produces correct filename."""
         filepath = save_recording(sample_schema, temp_output_dir)
         # Default template: {participant_id}_{stimulus_name}.json
         # stimulus_name should be "S0N180_headrot_short" (without .wav)
-        assert "VP001_S0N180_headrot_short.json" in filepath
+        assert filepath.name == "VP001_S0N180_headrot_short.json"
     
     def test_save_recording_custom_naming_template(self, sample_schema, temp_output_dir):
         """Verify custom naming template is used."""
@@ -198,7 +197,7 @@ class TestSaveRecording:
             naming_template=template
         )
         # Should use the custom template format
-        assert "recording_S0N180_headrot_short.json" in filepath
+        assert filepath.name == "recording_S0N180_headrot_short.json"
     
     def test_save_recording_creates_directories(self, sample_schema):
         """Verify save_recording creates nested directories."""
@@ -206,10 +205,10 @@ class TestSaveRecording:
         # Use a temp directory instead of /tmp for cross-platform testing
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:
-            nested_path = os.path.join(tmp, "nested", "deep", "test", "dir")
+            nested_path = Path(tmp) / "nested" / "deep" / "test" / "dir"
             filepath = save_recording(sample_schema, nested_path)
-            assert os.path.exists(filepath)
-            assert os.path.isdir(nested_path)
+            assert filepath.exists()
+            assert nested_path.is_dir()
     
     def test_save_recording_file_content_valid_json(self, sample_schema, temp_output_dir):
         """Verify saved file contains valid JSON."""
@@ -241,9 +240,9 @@ class TestSaveRecording:
             ratings=[5.0, 5.5]
         )
         filepath = save_recording(schema, temp_output_dir)
-        assert os.path.exists(filepath)
+        assert filepath.exists()
         # Filename should be VP001_.json (empty stimulus name)
-        assert "VP001_" in filepath
+        assert "VP001_" in filepath.name
     
     def test_save_recording_prevent_overwrite_enabled(self, sample_schema, temp_output_dir):
         """Verify save_recording creates unique filename when prevent_overwrite=True."""
@@ -253,9 +252,9 @@ class TestSaveRecording:
         
         # Second save should have _1 suffix
         assert filepath1 != filepath2
-        assert "_1" in filepath2
-        assert os.path.exists(filepath1)
-        assert os.path.exists(filepath2)
+        assert "_1" in filepath2.name
+        assert filepath1.exists()
+        assert filepath2.exists()
         
         # Both should contain valid data
         data1 = json.load(open(filepath1))
@@ -299,7 +298,7 @@ class TestSaveRecording:
         
         # Second should have _1 suffix (collision prevented)
         assert filepath1 != filepath2
-        assert "_1" in filepath2
+        assert "_1" in filepath2.name
 
 
 class TestLoadRecording:
@@ -329,7 +328,7 @@ class TestLoadRecording:
     
     def test_load_recording_invalid_json(self, temp_output_dir):
         """Verify load_recording raises JSONDecodeError for invalid JSON."""
-        filepath = os.path.join(temp_output_dir, "invalid.json")
+        filepath = Path(temp_output_dir) / "invalid.json"
         with open(filepath, 'w') as f:
             f.write("not valid json {")
         
@@ -338,7 +337,7 @@ class TestLoadRecording:
     
     def test_load_recording_missing_required_field(self, temp_output_dir):
         """Verify load_recording raises KeyError for missing required fields."""
-        filepath = os.path.join(temp_output_dir, "incomplete.json")
+        filepath = Path(temp_output_dir) / "incomplete.json"
         with open(filepath, 'w') as f:
             json.dump({"participant_id": "VP001"}, f)
         
@@ -406,7 +405,7 @@ class TestLoadAllRecordings:
                 stimulus_path="test.wav",
                 ratings=[5.0]
             )
-            nested_dir = os.path.join(tmp, "sub1", "sub2")
+            nested_dir = Path(tmp) / "sub1" / "sub2"
             save_recording(schema, nested_dir)
             
             recordings = load_all_recordings(tmp)
@@ -426,7 +425,7 @@ class TestLoadAllRecordings:
             save_recording(schema, tmp)
             
             # Create one invalid JSON file
-            invalid_path = os.path.join(tmp, "invalid.json")
+            invalid_path = Path(tmp) / "invalid.json"
             with open(invalid_path, 'w') as f:
                 f.write("not valid json")
             
@@ -456,7 +455,7 @@ class TestIntegration:
         
         # Save
         filepath = save_recording(schema, temp_output_dir)
-        assert os.path.exists(filepath)
+        assert filepath.exists()
         
         # Load
         loaded = load_recording(filepath)

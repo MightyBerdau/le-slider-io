@@ -1,6 +1,6 @@
 from dataclasses import dataclass, asdict, field
 import json
-import os
+from pathlib import Path
 from typing import Dict, Any
 
 @dataclass
@@ -23,7 +23,7 @@ class RatingRecordingSchema:
         """Convert schema to formatted JSON string."""
         return json.dumps(self.to_json_dict(), indent=indent, ensure_ascii=False)
 
-    def to_json_file(self, filepath: str, indent: int = 2, prevent_overwrite: bool = True) -> str:
+    def to_json_file(self, filepath: str | Path, indent: int = 2, prevent_overwrite: bool = True) -> Path:
         """Save schema to JSON file.
         
         Args:
@@ -33,7 +33,7 @@ class RatingRecordingSchema:
                 overwriting existing files (e.g., 'file_1.json')
                 
         Returns:
-            Absolute path to the file that was written
+            Absolute path to the file that was written as pathlib.Path
         """
         # Import here to avoid circular dependencies
         from .recording import get_safe_filepath
@@ -42,11 +42,12 @@ class RatingRecordingSchema:
         if prevent_overwrite:
             filepath = get_safe_filepath(filepath)
         
-        os.makedirs(os.path.dirname(filepath) or '.', exist_ok=True)
+        filepath = Path(filepath)
+        filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(self.to_json_string(indent=indent))
         
-        return os.path.abspath(filepath)
+        return filepath.resolve()
     
     @staticmethod
     def from_json_dict(data: Dict[str, Any]) -> 'RatingRecordingSchema':
@@ -71,7 +72,7 @@ class RatingRecordingSchema:
         )
     
     @staticmethod
-    def from_json_file(filepath: str) -> 'RatingRecordingSchema':
+    def from_json_file(filepath: str | Path) -> 'RatingRecordingSchema':
         """Load schema from JSON file.
         
         Args:
