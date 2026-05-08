@@ -89,11 +89,32 @@ class RatingRecordingSchema(BaseSchema):
 @dataclass
 class CalibrationSchema(BaseSchema):
     session_id: str = ""
-    gain_calib: float = 0.0
+    gain_calib: list[float] = field(default_factory=lambda: [1.0, 1.0])
+
+    def __post_init__(self) -> None:
+        self.gain_calib = self._validate_gain_calib(self.gain_calib)
+
+    @staticmethod
+    def _validate_gain_calib(gain_calib: Any) -> list[float]:
+        if not isinstance(gain_calib, list):
+            raise TypeError("gain_calib must be a list of exactly two numeric values")
+        if len(gain_calib) != 2:
+            raise ValueError("gain_calib must contain exactly two values")
+
+        validated = []
+        for value in gain_calib:
+            if not isinstance(value, (int, float)):
+                raise TypeError("gain_calib values must be numeric")
+            float_value = float(value)
+            if float_value < 0:
+                raise ValueError("gain_calib values must be greater than or equal to 0")
+            validated.append(float_value)
+
+        return validated
 
     @classmethod
     def from_json_dict(cls, data: Dict[str, Any]) -> 'CalibrationSchema':
         return cls(
             session_id=data.get('session_id', ''),
-            gain_calib=data['gain_calib'],
+            gain_calib=cls._validate_gain_calib(data['gain_calib']),
         )

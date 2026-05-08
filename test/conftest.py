@@ -32,7 +32,7 @@ def sample_calib_schema():
     """Create a sample CalibrationSchema with typical data."""
     return CalibrationSchema(
         session_id="2026-04-24T13:15:36.008773+02:00",
-        gain_calib=-12.5
+        gain_calib=[0.7, 1.1]
     )
 
 
