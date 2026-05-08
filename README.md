@@ -1,6 +1,6 @@
-# LE-Slider-IO
+# le slider io
 
-A lightweight Python library for managing and persisting audio rating recordings from the [le slider project](https://github.com/MightyBerdau/Le-Slider.git). Provides schema definition and utilities for serializing slider-based rating data to JSON format.
+A lightweight Python library for managing and persisting audio rating recordings from the [le slider project](https://github.com/MightyBerdau/le-slider.git). Provides schema definition and utilities for serializing slider-based rating data to JSON format.
 
 ## Table of Contents
 
