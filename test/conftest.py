@@ -32,6 +32,13 @@ def sample_calib_schema():
     """Create a sample CalibrationSchema with typical data."""
     return CalibrationSchema(
         session_id="2026-04-24T13:15:36.008773+02:00",
+        device_id=12,
+        device_name="RME Fireface UFX III",
+        fs=48000,
+        measured_spl_left=94.5,
+        measured_spl_right=93.8,
+        desired_spl=94.0,
+        calib_signal_path="C:\\Calibration\\pink_noise_1kHz.wav",
         gain_calib=[0.7, 1.1]
     )
 

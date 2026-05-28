@@ -314,37 +314,44 @@ class TestEncoding:
 class TestCalibrationSchemaDefaults:
     """Test default values and initialization of CalibrationSchema."""
 
-    def test_schema_default_values(self):
-        """Verify all fields have correct default values."""
-        schema = CalibrationSchema()
-        assert schema.session_id == ""
-        assert schema.gain_calib == [1.0, 1.0]
-
-    def test_schema_partial_initialization(self):
-        """Verify schema can be initialized with partial fields."""
-        schema = CalibrationSchema(gain_calib=[0.6, 0.8])
-        assert schema.gain_calib == [0.6, 0.8]
-        assert schema.session_id == ""
-
     def test_schema_full_initialization(self, sample_calib_schema):
-        """Verify schema initializes with all fields correctly."""
+        """Verify schema initializes with all required fields correctly."""
         assert sample_calib_schema.session_id == "2026-04-24T13:15:36.008773+02:00"
+        assert sample_calib_schema.device_id == 12
+        assert sample_calib_schema.device_name == "RME Fireface UFX III"
+        assert sample_calib_schema.fs == 48000
+        assert sample_calib_schema.measured_spl_left == 94.5
+        assert sample_calib_schema.measured_spl_right == 93.8
+        assert sample_calib_schema.desired_spl == 94.0
+        assert sample_calib_schema.calib_signal_path == "C:\\Calibration\\pink_noise_1kHz.wav"
         assert sample_calib_schema.gain_calib == [0.7, 1.1]
 
     def test_schema_gain_calib_accepts_positive(self):
         """Verify gain_calib accepts positive values for both channels."""
-        schema = CalibrationSchema(gain_calib=[6.0, 2.0])
+        schema = CalibrationSchema(
+            device_id=1, device_name="Test", fs=44100,
+            measured_spl_left=90.0, measured_spl_right=90.0,
+            desired_spl=90.0, gain_calib=[6.0, 2.0]
+        )
         assert schema.gain_calib == [6.0, 2.0]
 
     def test_schema_gain_calib_accepts_zero(self):
         """Verify gain_calib accepts zero for both channels."""
-        schema = CalibrationSchema(gain_calib=[0.0, 0.0])
+        schema = CalibrationSchema(
+            device_id=1, device_name="Test", fs=44100,
+            measured_spl_left=90.0, measured_spl_right=90.0,
+            desired_spl=90.0, gain_calib=[0.0, 0.0]
+        )
         assert schema.gain_calib == [0.0, 0.0]
 
     def test_schema_gain_calib_rejects_negative_values(self):
         """Verify gain_calib rejects negative values in constructor."""
         with pytest.raises(ValueError):
-            CalibrationSchema(gain_calib=[0.7, -0.1])
+            CalibrationSchema(
+                device_id=1, device_name="Test", fs=44100,
+                measured_spl_left=90.0, measured_spl_right=90.0,
+                desired_spl=90.0, gain_calib=[0.7, -0.1]
+            )
 
 
 class TestCalibrationToJsonDict:
@@ -358,17 +365,14 @@ class TestCalibrationToJsonDict:
         assert json_dict["session_id"] == "2026-04-24T13:15:36.008773+02:00"
 
     def test_to_json_dict_has_all_fields(self, sample_calib_schema):
-        """Verify to_json_dict includes exactly the expected fields."""
+        """Verify to_json_dict includes exactly all fields."""
         json_dict = sample_calib_schema.to_json_dict()
-        expected_fields = {"session_id", "gain_calib"}
+        expected_fields = {
+            "session_id", "device_id", "device_name", "fs",
+            "measured_spl_left", "measured_spl_right", "desired_spl",
+            "calib_signal_path", "gain_calib"
+        }
         assert set(json_dict.keys()) == expected_fields
-
-    def test_to_json_dict_default_schema(self):
-        """Verify to_json_dict works with default schema."""
-        schema = CalibrationSchema()
-        json_dict = schema.to_json_dict()
-        assert json_dict["session_id"] == ""
-        assert json_dict["gain_calib"] == [1.0, 1.0]
 
     def test_to_json_dict_gain_calib_type(self, sample_calib_schema):
         """Verify gain_calib is serialized as a list of two floats."""
@@ -434,6 +438,9 @@ class TestCalibrationToJsonFile:
             data = json.load(f)
         assert data["gain_calib"] == [0.7, 1.1]
         assert data["session_id"] == "2026-04-24T13:15:36.008773+02:00"
+        assert data["device_id"] == 12
+        assert data["fs"] == 48000
+        assert data["desired_spl"] == 94.0
 
     def test_to_json_file_returns_absolute_path(self, sample_calib_schema, temp_output_dir):
         """Verify to_json_file returns an absolute path."""
@@ -501,36 +508,102 @@ class TestCalibrationFromJsonDict:
         assert reconstructed.gain_calib == sample_calib_schema.gain_calib
         assert reconstructed.session_id == sample_calib_schema.session_id
 
-    def test_from_json_dict_missing_optional_session_id(self):
-        """Verify from_json_dict handles missing optional session_id."""
-        minimal_dict = {"gain_calib": [0.3, 0.5]}
+    def test_from_json_dict_with_minimal_fields(self):
+        """Verify from_json_dict with only required fields (session_id optional)."""
+        minimal_dict = {
+            "device_id": 5,
+            "device_name": "TestDevice",
+            "fs": 44100,
+            "measured_spl_left": 90.0,
+            "measured_spl_right": 91.0,
+            "desired_spl": 90.5,
+            "gain_calib": [0.3, 0.5]
+        }
         schema = CalibrationSchema.from_json_dict(minimal_dict)
+        assert schema.device_id == 5
         assert schema.gain_calib == [0.3, 0.5]
         assert schema.session_id == ""
+        assert schema.calib_signal_path == ""
 
     def test_from_json_dict_scalar_gain_calib_raises(self):
         """Verify scalar gain_calib is rejected in strict two-channel mode."""
+        data = {
+            "device_id": 1,
+            "device_name": "Test",
+            "fs": 48000,
+            "measured_spl_left": 90.0,
+            "measured_spl_right": 90.0,
+            "desired_spl": 90.0,
+            "gain_calib": -3.0
+        }
         with pytest.raises(TypeError):
-            CalibrationSchema.from_json_dict({"gain_calib": -3.0})
+            CalibrationSchema.from_json_dict(data)
 
     def test_from_json_dict_invalid_gain_calib_length_raises(self):
         """Verify from_json_dict rejects gain_calib lists that are not length 2."""
+        data = {
+            "device_id": 1,
+            "device_name": "Test",
+            "fs": 48000,
+            "measured_spl_left": 90.0,
+            "measured_spl_right": 90.0,
+            "desired_spl": 90.0,
+            "gain_calib": [-3.0]
+        }
         with pytest.raises(ValueError):
-            CalibrationSchema.from_json_dict({"gain_calib": [-3.0]})
+            CalibrationSchema.from_json_dict(data)
 
     def test_from_json_dict_non_numeric_gain_calib_raises(self):
         """Verify from_json_dict rejects non-numeric gain_calib values."""
+        data = {
+            "device_id": 1,
+            "device_name": "Test",
+            "fs": 48000,
+            "measured_spl_left": 90.0,
+            "measured_spl_right": 90.0,
+            "desired_spl": 90.0,
+            "gain_calib": [0.3, "bad"]
+        }
         with pytest.raises(TypeError):
-            CalibrationSchema.from_json_dict({"gain_calib": [0.3, "bad"]})
+            CalibrationSchema.from_json_dict(data)
 
     def test_from_json_dict_negative_gain_calib_raises(self):
         """Verify from_json_dict rejects negative gain_calib values."""
+        data = {
+            "device_id": 1,
+            "device_name": "Test",
+            "fs": 48000,
+            "measured_spl_left": 90.0,
+            "measured_spl_right": 90.0,
+            "desired_spl": 90.0,
+            "gain_calib": [0.7, -0.1]
+        }
         with pytest.raises(ValueError):
-            CalibrationSchema.from_json_dict({"gain_calib": [0.7, -0.1]})
+            CalibrationSchema.from_json_dict(data)
+
+    def test_from_json_dict_missing_required_device_id_raises(self):
+        """Verify from_json_dict raises KeyError when device_id is missing."""
+        incomplete_dict = {
+            "device_name": "Test",
+            "fs": 48000,
+            "measured_spl_left": 90.0,
+            "measured_spl_right": 90.0,
+            "desired_spl": 90.0,
+            "gain_calib": [0.7, 1.1]
+        }
+        with pytest.raises(KeyError):
+            CalibrationSchema.from_json_dict(incomplete_dict)
 
     def test_from_json_dict_missing_required_gain_calib_raises(self):
         """Verify from_json_dict raises KeyError when gain_calib is missing."""
-        incomplete_dict = {"session_id": "2026-04-24T13:15:36.008773+02:00"}
+        incomplete_dict = {
+            "device_id": 5,
+            "device_name": "Test",
+            "fs": 48000,
+            "measured_spl_left": 90.0,
+            "measured_spl_right": 90.0,
+            "desired_spl": 90.0
+        }
         with pytest.raises(KeyError):
             CalibrationSchema.from_json_dict(incomplete_dict)
 
@@ -604,10 +677,17 @@ class TestCalibrationEncoding:
         """Verify unicode characters in session_id survive round-trip."""
         schema = CalibrationSchema(
             session_id="2026-04-24T13:15:36+02:00_éàü",
+            device_id=3,
+            device_name="TestDevice_üñ",
+            fs=48000,
+            measured_spl_left=92.0,
+            measured_spl_right=93.0,
+            desired_spl=92.5,
             gain_calib=[0.9, 1.0]
         )
         filepath = Path(temp_output_dir) / "calib_unicode.json"
         schema.to_json_file(filepath)
         loaded = CalibrationSchema.from_json_file(filepath)
         assert loaded.session_id == schema.session_id
+        assert loaded.device_name == schema.device_name
         assert loaded.gain_calib == schema.gain_calib

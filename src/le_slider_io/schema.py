@@ -88,8 +88,15 @@ class RatingRecordingSchema(BaseSchema):
 
 @dataclass
 class CalibrationSchema(BaseSchema):
+    device_id: int
+    device_name: str
+    fs: int
+    measured_spl_left: float
+    measured_spl_right: float
+    desired_spl: float
+    gain_calib: list[float]
     session_id: str = ""
-    gain_calib: list[float] = field(default_factory=lambda: [1.0, 1.0])
+    calib_signal_path: str = ""
 
     def __post_init__(self) -> None:
         self.gain_calib = self._validate_gain_calib(self.gain_calib)
@@ -116,5 +123,12 @@ class CalibrationSchema(BaseSchema):
     def from_json_dict(cls, data: Dict[str, Any]) -> 'CalibrationSchema':
         return cls(
             session_id=data.get('session_id', ''),
+            device_id=data['device_id'],
+            device_name=data['device_name'],
+            fs=data['fs'],
+            measured_spl_left=data['measured_spl_left'],
+            measured_spl_right=data['measured_spl_right'],
+            desired_spl=data['desired_spl'],
+            calib_signal_path=data.get('calib_signal_path', ''),
             gain_calib=cls._validate_gain_calib(data['gain_calib']),
         )
