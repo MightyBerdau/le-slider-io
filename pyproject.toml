@@ -12,7 +12,6 @@ authors = [
 ]
 readme = "README.md"
 
-requires-python = ">=3.11.3"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
